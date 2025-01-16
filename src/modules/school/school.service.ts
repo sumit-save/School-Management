@@ -27,7 +27,6 @@ export class SchoolService {
                     error: "Conflict"
                 };
             }
-            console.log(createSchoolDto);
             const board = await this.boardRepository.findOne({ where: { id: createSchoolDto.board_id } });
             if (!board) {
                 return {
@@ -36,7 +35,7 @@ export class SchoolService {
                     error: "Conflict"
                 };
             }
-            const insObj = { ...createSchoolDto, created_by: user?.id, created_at: new Date() };
+            const insObj = { ...createSchoolDto, board: board, created_by: user?.id, created_at: new Date() };
             const newSchool = this.schoolRepository.create(insObj);
             const savedSchool = await this.schoolRepository.save(newSchool);
             return {
@@ -152,7 +151,7 @@ export class SchoolService {
 
     async update(user: any, id: number, updateSchoolDto: UpdateSchoolDto): Promise<any> {
         try {
-            const school = await this.schoolRepository.findOne({ where: { id: id } });
+            const school = await this.schoolRepository.findOne({ where: { id: id }, relations: ['board'] });
             if (!school) {
                 return {
                     statusCode: HttpStatus.NOT_FOUND,
@@ -168,8 +167,8 @@ export class SchoolService {
                     error: "Conflict"
                 };
             }
-            const upObj = { ...updateSchoolDto, updated_by: user?.id, updated_at: new Date() };
-            const updatedSchool = await this.schoolRepository.update(id, upObj);
+            const upObj = { ...updateSchoolDto, board: board, updated_by: user?.id, updated_at: new Date() };
+            const updatedSchool = await this.schoolRepository.save({ id, ...upObj });
             return {
                 statusCode: HttpStatus.OK,
                 message: "School detail updated successfully.",
