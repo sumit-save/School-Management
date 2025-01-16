@@ -24,7 +24,7 @@ export class UserController {
 
     // All user
     @Get("/all")
-    @Roles(RoleType.Admin)
+    @Roles(RoleType.Admin, RoleType.Teacher)
     @UseGuards(JwtGuard, RolesGuard)
     async all(@Query() allUserDto: AllUserDto): Promise<User[]> {
         return this.userService.all(allUserDto);
@@ -32,7 +32,7 @@ export class UserController {
 
     // Show specific user
     @Get("/view/:id")
-    @Roles(RoleType.Admin, RoleType.EndUser)
+    @Roles(RoleType.Admin, RoleType.Teacher, RoleType.EndUser)
     @UseGuards(JwtGuard, RolesGuard)
     async show(@Param("id", ParseIntPipe) id: number): Promise<User | null> {
         return this.userService.show(id);

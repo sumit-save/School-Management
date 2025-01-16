@@ -20,7 +20,7 @@ export class AuthController {
 
     // Logout
     @Post("/logout")
-    @Roles(RoleType.Admin, RoleType.EndUser)
+    @Roles(RoleType.Admin, RoleType.Teacher, RoleType.EndUser)
     @UseGuards(JwtGuard, RolesGuard)
     async logout(@Auth() auth: any): Promise<any> {
         return this.authService.logout(auth);

@@ -4,15 +4,18 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindManyOptions, LessThanOrEqual, Like, MoreThanOrEqual, Repository } from 'typeorm';
 import { User } from './entity/user.entity';
+import { School } from "../school/entity/school.entity";
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AllUserDto } from './dto/all-user.dto';
+import { UserType } from "./enum/user-type.enum";
 
 
 @Injectable()
 export class UserService {
     constructor(
-        @InjectRepository(User) private readonly userRepository: Repository<User>
+        @InjectRepository(User) private readonly userRepository: Repository<User>,
+        @InjectRepository(School) private readonly schoolRepository: Repository<School>
     ) { }
 
     async create(user: any, createUserDto: CreateUserDto): Promise<any> {
@@ -25,14 +28,29 @@ export class UserService {
                     error: "Conflict"
                 };
             };
+            const school = await this.schoolRepository.findOne({ where: { id: createUserDto.school_id } });
+            if (createUserDto.role === UserType.Teacher && !createUserDto.school_id) {
+                return {
+                    statusCode: HttpStatus.BAD_REQUEST,
+                    message: "School id is required",
+                    error: "Bad Request"
+                };
+            }
+            if (createUserDto.role === UserType.Teacher && !school) {
+                return {
+                    statusCode: HttpStatus.NOT_FOUND,
+                    message: "School not found",
+                    error: "Not Found"
+                };
+            }
             const hash = await bcrypt.hash(createUserDto.password, 10);
             const insObj = {
                 ...createUserDto,
+                school: school,
                 password: hash,
                 created_by: user?.id,
                 created_at: new Date()
             };
-            console.log("nxhjbhs", insObj);
             const newUser = this.userRepository.create(insObj);
             const savedUser = await this.userRepository.save(newUser);
             return {
@@ -65,7 +83,8 @@ export class UserService {
                 order: { [sortKey]: orderValue },
                 skip: ((pageSize - 1) * limitSize),
                 take: limitSize,
-                select: ['id', 'name', 'email', 'address', 'role', 'is_active', 'created_by', 'created_at']
+                relations: ['school', 'school.board'],
+                select: ['id', 'name', 'email', 'address', 'role', 'is_active', 'created_by', 'created_at', 'school']
             };
             if (search) {
                 options.where = { ...options.where, name: Like(`%${search}%`) };
@@ -103,7 +122,8 @@ export class UserService {
         try {
             const user = await this.userRepository.findOne({
                 where: { id: id },
-                select: ['id', 'name', 'email', 'password', 'address', 'role', 'is_active', 'created_by', 'created_at']
+                relations: ['school', 'school.board'],
+                select: ['id', 'name', 'email', 'password', 'address', 'role', 'is_active', 'created_by', 'created_at', 'school']
             });
             if (!user) {
                 return {
@@ -130,65 +150,79 @@ export class UserService {
         }
     }
 
-     async update(user: any, id: number, updateUserDto: UpdateUserDto): Promise<any> {
-            try {
-                const record = await this.userRepository.findOne({ where: { id: id } });
-                if (!record) {
-                    return {
-                        statusCode: HttpStatus.NOT_FOUND,
-                        message: "User detail not found.",
-                        error: "Not found"
-                    };
-                }
-                const upObj = { ...updateUserDto, updated_by: user?.id, updated_at: new Date() };
-                console.log("xsb", upObj);
-                const updatedSchool = await this.userRepository.update(id, upObj);
+    async update(user: any, id: number, updateUserDto: UpdateUserDto): Promise<any> {
+        try {
+            const record = await this.userRepository.findOne({ where: { id: id } });
+            if (!record) {
                 return {
-                    statusCode: HttpStatus.OK,
-                    message: "User detail updated successfully.",
-                    data: null
+                    statusCode: HttpStatus.NOT_FOUND,
+                    message: "User detail not found.",
+                    error: "Not found"
                 };
-            } catch (error) {
-                console.log(error);
-                throw new HttpException(
-                    {
-                        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-                        message: 'An error occurred while updating the user.',
-                        error: 'Internal server error',
-                    },
-                    HttpStatus.INTERNAL_SERVER_ERROR
-                );
             }
-        }
-    
-        async remove(user: any, id: number): Promise<any> {
-            try {
-                const record = await this.userRepository.findOne({ where: { id: id } });
-                if (!record) {
-                    return {
-                        statusCode: HttpStatus.NOT_FOUND,
-                        message: "User detail not found.",
-                        error: "Not found"
-                    };
-                }
-                const upObj = { is_deleted: 1, deleted_by: user?.id, deleted_at: new Date() };
-                const removedSchool = await this.userRepository.update(id, upObj);
+            const school = await this.schoolRepository.findOne({ where: { id: updateUserDto.school_id } });
+            if (updateUserDto.role === UserType.Teacher && !updateUserDto.school_id) {
                 return {
-                    statusCode: HttpStatus.OK,
-                    message: "User detail removed successfully.",
-                    data: null
+                    statusCode: HttpStatus.BAD_REQUEST,
+                    message: "School id is required",
+                    error: "Bad Request"
                 };
-            } catch (error) {
-                console.log(error);
-                throw new HttpException(
-                    {
-                        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-                        message: 'An error occurred while removing the user.',
-                        error: 'Internal server error',
-                    },
-                    HttpStatus.INTERNAL_SERVER_ERROR
-                );
             }
+            if (updateUserDto.role === UserType.Teacher && !school) {
+                return {
+                    statusCode: HttpStatus.NOT_FOUND,
+                    message: "School not found",
+                    error: "Not Found"
+                };
+            }
+            const upObj = { ...updateUserDto, school: school, updated_by: user?.id, updated_at: new Date() };
+            const updatedUser = await this.userRepository.save({ id, ...upObj });
+            return {
+                statusCode: HttpStatus.OK,
+                message: "User detail updated successfully.",
+                data: null
+            };
+        } catch (error) {
+            console.log(error);
+            throw new HttpException(
+                {
+                    statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+                    message: 'An error occurred while updating the user.',
+                    error: 'Internal server error',
+                },
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
         }
+    }
+
+    async remove(user: any, id: number): Promise<any> {
+        try {
+            const record = await this.userRepository.findOne({ where: { id: id } });
+            if (!record) {
+                return {
+                    statusCode: HttpStatus.NOT_FOUND,
+                    message: "User detail not found.",
+                    error: "Not found"
+                };
+            }
+            const upObj = { is_deleted: 1, deleted_by: user?.id, deleted_at: new Date() };
+            const removedUser = await this.userRepository.update(id, upObj);
+            return {
+                statusCode: HttpStatus.OK,
+                message: "User detail removed successfully.",
+                data: null
+            };
+        } catch (error) {
+            console.log(error);
+            throw new HttpException(
+                {
+                    statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+                    message: 'An error occurred while removing the user.',
+                    error: 'Internal server error',
+                },
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
+    }
 
 }

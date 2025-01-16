@@ -1,5 +1,6 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 import { UserType } from "../enum/user-type.enum";
+import { School } from "src/modules/school/entity/school.entity";
 
 @Entity()
 export class User {
@@ -20,6 +21,10 @@ export class User {
 
     @Column({ type: "enum", enum: UserType })
     role: UserType;
+
+    @ManyToOne(() => School, school => school.id)
+    @JoinColumn({ name: 'school_id' })
+    school: School;
 
     @Column({ type: 'tinyint', default: 0 })  // Using TINYINT(1) for is_active
     is_active: number;
