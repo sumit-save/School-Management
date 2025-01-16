@@ -32,14 +32,14 @@ export class UserService {
             if (createUserDto.role === UserType.Teacher && !createUserDto.school_id) {
                 return {
                     statusCode: HttpStatus.BAD_REQUEST,
-                    message: "School id is required",
+                    message: "School id is required if selected role as teacher.",
                     error: "Bad Request"
                 };
             }
             if (createUserDto.role === UserType.Teacher && !school) {
                 return {
                     statusCode: HttpStatus.NOT_FOUND,
-                    message: "School not found",
+                    message: "School detail not found",
                     error: "Not Found"
                 };
             }
@@ -164,14 +164,14 @@ export class UserService {
             if (updateUserDto.role === UserType.Teacher && !updateUserDto.school_id) {
                 return {
                     statusCode: HttpStatus.BAD_REQUEST,
-                    message: "School id is required",
+                    message: "School id is required if selected role as teacher.",
                     error: "Bad Request"
                 };
             }
             if (updateUserDto.role === UserType.Teacher && !school) {
                 return {
                     statusCode: HttpStatus.NOT_FOUND,
-                    message: "School not found",
+                    message: "School detail not found",
                     error: "Not Found"
                 };
             }
